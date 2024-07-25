@@ -1,5 +1,5 @@
 from uasyncio import sleep_ms
-from modbus_frame import ModbusFrame
+from modbus_frame import ModbusFrame, FrameTooShortError
 from rs485 import RS485
 
 
@@ -11,7 +11,12 @@ class ModbusRTUClient:
     async def runloop(self):
         print("Starting Modbus RTU Client")
         while True:
-            self.parse_recv()
+            if frame := self.parse_recv():
+                if frame.address == self.address:
+                    print("Received frame: %s" % frame)
+                else:
+                    print("Received frame for another device: %s" % frame)
+
             await sleep_ms(1000)
 
     def parse_recv(self, data=None):
@@ -30,6 +35,11 @@ class ModbusRTUClient:
         except NotImplementedError as e:
             print("Failed to parse data: %s\n%s " % (e, data))
             data = data[1:]
+        except FrameTooShortError as e:
+            print("Possible incomplete frame: %s\n%s " % (e, data))
+            self.serial.receive_buffer = data
+            return
 
         if data:
-            self.parse_recv(data)
+            return self.parse_recv(data)
+        self.serial.receive_buffer = data

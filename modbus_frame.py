@@ -12,12 +12,17 @@ FUNCTION_CODES = {1: ('HH', "Read Coils"),
                   16: "Write Multiple Registers"}
 
 
+class FrameTooShortError(Exception):
+    pass
+
+
 class ModbusFrame:
     @staticmethod
     def parse_frame(frame_bytes):
         """ Attempts to parse a modbus frame from a bytearray """
+        print("Parsing bytes: ", frame_bytes)
         if len(frame_bytes) < 6:
-            raise ValueError("Frame too short")
+            raise FrameTooShortError("Frame too short: %d" % len(frame_bytes))
         address, function = unpack(">BB", frame_bytes[:2])
 
         if address > 247:
@@ -28,10 +33,12 @@ class ModbusFrame:
 
         if function == 1:
             frame = ModbusFrame.read_coil(address, *unpack(">HH", frame_bytes[2:]))
+            data_crc = frame_bytes[6:8]
+            if data_crc != calculate_crc16(frame.pdu):
+                raise ValueError("CRC mismatch: %s != %s" % (data_crc, calculate_crc16(frame.pdu)))
         else:
             raise NotImplementedError("Function not implemented: %d" % function)
 
-        print("Got frame: ", frame)
         return frame, frame_bytes[len(frame.to_bytes()):]
 
     def __init__(self, address, function, data):
