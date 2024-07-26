@@ -5,8 +5,21 @@ from rs485 import RS485
 
 class ModbusRTUClient:
     def __init__(self, address, tx_pin, rx_pin, de_pin, uart=0,
-                 baudrate=9600, data_bits=8, parity=None, stop_bits=1):
-        chartime = get_serial_chartime(baudrate, data_bits, stop_bits)
+                 baudrate=9600, data_bits=8, parity=0, stop_bits=1):
+        """
+        address: int, device address
+        tx_pin: int, pin number for UART TX
+        rx_pin: int, pin number for UART RX
+        de_pin: int, pin number for RS485 DE/RE
+        uart: int, UART number
+        baudrate: int, baudrate
+        data_bits: int, number of data bits (default 8)
+        parity: int, parity (None: no parity, 0: even, 1: odd)
+        stop_bits: int, number of stop bits (default 1)
+        """
+        if parity is None:
+            stop_bits = 2  # Modbus RTU must use a 11-bit frame
+        chartime = get_serial_chartime(baudrate, data_bits, parity, stop_bits)
         tx_delay = chartime * 3.5
         self.address = address
         self.serial = RS485(tx_pin, rx_pin, de_pin, uart,

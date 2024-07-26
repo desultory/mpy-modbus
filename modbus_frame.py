@@ -2,9 +2,9 @@ from crc16_modbus import calculate_crc16
 from struct import pack, unpack
 
 
-FUNCTION_CODES = {1: ('HH', "Read Coils"),
+FUNCTION_CODES = {1: ('HH', "read_coils"),
                   2: "Read Discrete Inputs",
-                  3: ('HH', "Read Holding Registers"),
+                  3: ('HH', "read_holding_registers"),
                   4: "Read Input Registers",
                   5: "Write Single Coil",
                   6: "Write Single Register",
@@ -12,9 +12,9 @@ FUNCTION_CODES = {1: ('HH', "Read Coils"),
                   16: "Write Multiple Registers"}
 
 
-def get_serial_chartime(baudrate, data_bits, stop_bits):
+def get_serial_chartime(baudrate, data_bits, parity, stop_bits):
     """ Returns the time it takes to send a single byte over serial """
-    packet_size = data_bits + stop_bits + 1
+    packet_size = data_bits + stop_bits + (1 if parity is not None else 0)
     packets_per_second = baudrate / packet_size
     chartime_ms = 1000 / packets_per_second
     return chartime_ms
@@ -39,13 +39,16 @@ class ModbusFrame:
         if function not in FUNCTION_CODES:
             raise ValueError("Function code not supported: %d" % function)
 
-        if function == 1 or function == 3:
-            frame = ModbusFrame.read_coil(address, *unpack(">HH", frame_bytes[2:]))
-            data_crc = frame_bytes[6:8]
-            if data_crc != calculate_crc16(frame.pdu):
-                raise ValueError("CRC mismatch: %s != %s" % (data_crc, calculate_crc16(frame.pdu)))
-        else:
-            raise NotImplementedError("Function not implemented: %d" % function)
+        try:
+            func = getattr(ModbusFrame, FUNCTION_CODES[function][1])
+        except AttributeError:
+            raise NotImplementedError("Function not implemented: %s" % FUNCTION_CODES[function][1])
+        params = FUNCTION_CODES[function][0]
+
+        frame = func(address, *unpack(">" + params, frame_bytes[len(params):]))
+        data_crc = frame_bytes[len(frame.pdu):len(frame.pdu) + 2]
+        if data_crc != frame.crc:
+            raise ValueError("CRC mismatch: %s != %s" % (data_crc, frame.crc))
 
         return frame, frame_bytes[len(frame.to_bytes()):]
 
@@ -69,10 +72,6 @@ class ModbusFrame:
     @property
     def pdu(self):
         function_format = FUNCTION_CODES[self.function][0]
-        if self.function != 1:
-            data_format = 'B' * len(self.data)
-            return pack(">B" + function_format + data_format,
-                        self.address, self.function, *self.data)
         return pack(">BB" + function_format, self.address, self.function, *self.data)
 
     @property
@@ -80,7 +79,7 @@ class ModbusFrame:
         return calculate_crc16(self.pdu)
 
     @staticmethod
-    def read_coil(address, start, count):
+    def read_coils(address, start, count):
         return ModbusFrame(address, 1, (start, count))
 
     @staticmethod

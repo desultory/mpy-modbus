@@ -33,12 +33,9 @@ class RS485:
 
     async def recv(self):
         async with self.dev_lock:
-            i = 0
             if self.uart.any():
                 received = ticks_us()
                 while ticks_diff(ticks_us(), received) < self.character_timeout:
-                    print("elapsed: ", ticks_diff(ticks_us(), received))
-                    i += 1
                     self._recv()  # Get some data
 
     def _recv(self):
