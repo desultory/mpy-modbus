@@ -3,8 +3,7 @@ class RingBytes(bytearray):
     def __init__(self, max_length):
         """ Init using super, then clear the buffer. """
         self.max_length = max_length
-        super().__init__(max_length)
-        self.clear()
+        super().__init__()
 
     def extend(self, item):
         super().extend(item)
@@ -12,7 +11,7 @@ class RingBytes(bytearray):
             self = self[-self.max_length:]
 
     def clear(self):
-        self[:] = b''
+        self[:] = RingBytes(self.max_length)
 
     def __iadd__(self, other):
         self.extend(other)

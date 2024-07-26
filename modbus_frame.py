@@ -4,12 +4,20 @@ from struct import pack, unpack
 
 FUNCTION_CODES = {1: ('HH', "Read Coils"),
                   2: "Read Discrete Inputs",
-                  3: "Read Holding Registers",
+                  3: ('HH', "Read Holding Registers"),
                   4: "Read Input Registers",
                   5: "Write Single Coil",
                   6: "Write Single Register",
                   15: "Write Multiple Coils",
                   16: "Write Multiple Registers"}
+
+
+def get_serial_chartime(baudrate, data_bits, stop_bits):
+    """ Returns the time it takes to send a single byte over serial """
+    packet_size = data_bits + stop_bits + 1
+    packets_per_second = baudrate / packet_size
+    chartime_ms = 1000 / packets_per_second
+    return chartime_ms
 
 
 class FrameTooShortError(Exception):
@@ -31,7 +39,7 @@ class ModbusFrame:
         if function not in FUNCTION_CODES:
             raise ValueError("Function code not supported: %d" % function)
 
-        if function == 1:
+        if function == 1 or function == 3:
             frame = ModbusFrame.read_coil(address, *unpack(">HH", frame_bytes[2:]))
             data_crc = frame_bytes[6:8]
             if data_crc != calculate_crc16(frame.pdu):
@@ -74,4 +82,8 @@ class ModbusFrame:
     @staticmethod
     def read_coil(address, start, count):
         return ModbusFrame(address, 1, (start, count))
+
+    @staticmethod
+    def read_holding_registers(address, start, count):
+        return ModbusFrame(address, 3, (start, count))
 

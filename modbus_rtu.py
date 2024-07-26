@@ -1,12 +1,17 @@
 from uasyncio import sleep_ms
-from modbus_frame import ModbusFrame, FrameTooShortError
+from modbus_frame import ModbusFrame, FrameTooShortError, get_serial_chartime
 from rs485 import RS485
 
 
 class ModbusRTUClient:
-    def __init__(self, address, tx_pin, rx_pin, de_pin, uart=0, baudrate=9600):
+    def __init__(self, address, tx_pin, rx_pin, de_pin, uart=0,
+                 baudrate=9600, data_bits=8, parity=None, stop_bits=1):
+        chartime = get_serial_chartime(baudrate, data_bits, stop_bits)
+        tx_delay = chartime * 3.5
         self.address = address
-        self.serial = RS485(tx_pin, rx_pin, de_pin, uart, baudrate)
+        self.serial = RS485(tx_pin, rx_pin, de_pin, uart,
+                            baudrate, data_bits, parity, stop_bits,
+                            tx_delay=tx_delay, poll_interval=tx_delay * 2)
 
     async def runloop(self):
         print("Starting Modbus RTU Client")
