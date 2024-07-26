@@ -33,26 +33,30 @@ class RS485:
 
     async def recv(self):
         async with self.dev_lock:
+            self.de.off()  # Set DE pin to receive mode
             if self.uart.any():
                 received = ticks_us()
                 while ticks_diff(ticks_us(), received) < self.character_timeout:
                     self._recv()  # Get some data
 
     def _recv(self):
-        self.de.off()
         if len := self.uart.any():
             self.receive_buffer += self.uart.read(len)
 
     def _send(self, data):
+        """
+        Send wrapper.
+        doesn't return the DE pin to receive mode, as timing is handled by async
+        """
         self.de.on()
         self.uart.write(data)
         self.uart.flush()
-        self.de.off()
 
     async def send(self, data):
         async with self.dev_lock:
+            self._send(data)
             await sleep_ms(self.tx_delay)
             if self.sleep_us:
                 sleep_us(self.sleep_us)
-            self._send(data)
+            self.de.off()
 

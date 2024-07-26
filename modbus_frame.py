@@ -28,7 +28,7 @@ class ModbusFrame:
     @staticmethod
     def parse_frame(frame_bytes):
         """ Attempts to parse a modbus frame from a bytearray """
-        print("Parsing bytes: ", frame_bytes)
+        print("Parsing bytes: ", frame_bytes.hex())
         if len(frame_bytes) < 6:
             raise FrameTooShortError("Frame too short: %d" % len(frame_bytes))
         address, function = unpack(">BB", frame_bytes[:2])
@@ -52,13 +52,21 @@ class ModbusFrame:
 
         return frame, frame_bytes[len(frame.to_bytes()):]
 
-    def __init__(self, address, function, data):
+    def __init__(self, address, function, data, response=False):
         if function not in FUNCTION_CODES:
             raise ValueError("Function code not supported: %d" % function)
 
         self.address = address
         self.function = function
+        if isinstance(data, tuple):
+            if len(data) != len(FUNCTION_CODES[function][0]):
+                raise ValueError("Invalid data length: %d != %d" %
+                                 (len(data), len(FUNCTION_CODES[function][0])))
+        elif response:
+            if len(data) < 1 or len(data) > 253:
+                raise ValueError("Invalid data length: %d" % len(data))
         self.data = data
+        self.response = response
 
     def __str__(self):
         return f"Address: {self.address}, Function: {FUNCTION_CODES[self.function][1]}, Data: {self.data}"
@@ -71,8 +79,13 @@ class ModbusFrame:
 
     @property
     def pdu(self):
-        function_format = FUNCTION_CODES[self.function][0]
-        return pack(">BB" + function_format, self.address, self.function, *self.data)
+        if self.response:
+            data_length = len(self.data)
+            data_format = "B" * data_length
+            return pack(">BBB" + data_format, self.address, self.function, data_length, *self.data)
+        else:
+            function_format = FUNCTION_CODES[self.function][0]
+            return pack(">BB" + function_format, self.address, self.function, *self.data)
 
     @property
     def crc(self):
