@@ -1,6 +1,7 @@
 from uasyncio import sleep_ms
 from modbus_frame import ModbusFrame, FrameTooShortError, get_serial_chartime
 from rs485 import RS485
+from math import ceil
 
 
 class ModbusRTUClient:
@@ -21,15 +22,18 @@ class ModbusRTUClient:
             stop_bits = 2  # Modbus RTU must use a 11-bit frame
         if baudrate < 19200:
             chartime = get_serial_chartime(baudrate, data_bits, parity, stop_bits)
-            tx_delay = chartime * 3.5  # Use the base char time for the tx_delay
+            tx_delay = chartime * 3500  # Use the base char time for the tx_delay, convert to us
             chartime = chartime * 1.5  # Multiply by 1.5 to account for the 1.5 character time
         else:
             chartime = 0.750  # 750 us
             tx_delay = 1.750  # 1750 us
+        chartime = ceil(chartime)
+        poll_interval = tx_delay / 500  # Multiply by 2, convert to ms
+        print("Chartime: %s, tx_delay: %s" % (chartime, tx_delay))
         self.address = address
         self.serial = RS485(tx_pin, rx_pin, de_pin, uart,
                             baudrate, data_bits, parity, stop_bits,
-                            tx_delay=tx_delay, poll_interval=tx_delay * 2)
+                            tx_delay=tx_delay, timeout_char=chartime, poll_interval=poll_interval)
 
         # Each key is a register address
         # Implied starting at 40001, so 0x0000 is 40001
@@ -38,33 +42,41 @@ class ModbusRTUClient:
     async def runloop(self):
         print("Starting Modbus RTU Client")
         while True:
-            if frame := self.parse_recv():
-                await self.handle_frame(frame)
+            for message in self.get_messages():
+                await self.parse_recv(message)
             await sleep_ms(1000)
 
-    def parse_recv(self, data=None):
-        data = data or self.serial.receive_buffer
+    def get_messages(self):
+        """ Get a message from message list """
+        if self.serial.messages:
+            yield self.serial.messages.pop(0)
+        return None
+
+    def parse_recv(self, data, i=0):
+        """
+        Try to parse a message from the receive buffer or the given data.
+        If the data cannot be parsed, shift the buffer by one byte and try again.
+        After 10 attempts, return.
+        """
+        if i > 10:
+            return print("Failed to parse data after 10 attempts. Resetting buffer.")
+
         if not data:
-            return
+            return print("No data to parse")
 
         try:
-            frame, new_recv = ModbusFrame.parse_frame(data)
-            self.serial.receive_buffer = new_recv
-            return frame
+            await self.handle_frame(ModbusFrame.parse_frame(data))
         except ValueError as e:
             print("Failed to parse data: %s\n%s " % (e, data))
-            data = data[1:]
         except NotImplementedError as e:
             print("Failed to parse data: %s\n%s " % (e, data))
-            data = data[1:]
         except FrameTooShortError as e:
             print("Possible incomplete frame: %s\n%s " % (e, data))
-            self.serial.receive_buffer = data
             return
 
+        data = data[1:]
         if data:
-            return self.parse_recv(data)
-        self.serial.receive_buffer = data
+            return self.parse_recv(data, i + 1)
 
     async def handle_read_holding_registers(self, frame):
         """ Sends a response with the values of the requested registers """

@@ -15,9 +15,7 @@ FUNCTION_CODES = {1: ('HH', "read_coils"),
 def get_serial_chartime(baudrate, data_bits, parity, stop_bits):
     """ Returns the time it takes to send a single byte over serial """
     packet_size = data_bits + stop_bits + (1 if parity is not None else 0)
-    packets_per_second = baudrate / packet_size
-    chartime_ms = 1000 / packets_per_second
-    return chartime_ms
+    return 1000 * packet_size / baudrate
 
 
 class FrameTooShortError(Exception):
@@ -50,7 +48,7 @@ class ModbusFrame:
         if data_crc != frame.crc:
             raise ValueError("CRC mismatch: %s != %s" % (data_crc, frame.crc))
 
-        return frame, frame_bytes[len(frame.to_bytes()):]
+        return frame
 
     def __init__(self, address, function, data, response=False):
         if function not in FUNCTION_CODES:
