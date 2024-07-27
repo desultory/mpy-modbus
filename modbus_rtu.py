@@ -1,6 +1,6 @@
 from uasyncio import sleep_ms
-from modbus_frame import ModbusFrame, FrameTooShortError, get_serial_chartime
-from rs485 import RS485
+from modbus_frame import ModbusFrame, FrameTooShortError
+from rs485 import RS485, get_serial_chartime
 from math import ceil
 from utime import ticks_ms
 

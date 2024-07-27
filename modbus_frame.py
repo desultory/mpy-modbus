@@ -12,12 +12,6 @@ FUNCTION_CODES = {1: ('HH', "read_coils"),
                   16: "Write Multiple Registers"}
 
 
-def get_serial_chartime(baudrate, data_bits, parity, stop_bits):
-    """ Returns the time it takes to send a single byte over serial """
-    packet_size = data_bits + stop_bits + (1 if parity is not None else 0)
-    return 1000 * packet_size / baudrate
-
-
 class FrameTooShortError(Exception):
     pass
 
