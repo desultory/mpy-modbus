@@ -35,10 +35,13 @@ class ModbusRTUClient:
         self.address = address
         self.serial = RS485(tx_pin, rx_pin, de_pin, uart,
                             baudrate, data_bits, parity, stop_bits,
-                            tx_delay=tx_delay, timeout_char=chartime, poll_interval=chartime,
+                            tx_delay=tx_delay, timeout_char=chartime,
+                            poll_interval=0,  # gotta go fast
                             debug=debug)
 
         self.poll_interval = chartime * 2
+
+        self.log("RTU Poll Interval: %d ms" % self.poll_interval)
 
         # Each key is a register address
         # Implied starting at 40001, so 0x0000 is 40001

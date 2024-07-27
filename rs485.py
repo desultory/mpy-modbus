@@ -26,9 +26,10 @@ class RS485:
             timeout = timeout_char * 2  # default to 2 chartimes
         self.uart = UART(uart, baudrate=baudrate, tx=tx_pin, rx=rx_pin, bits=data_bits,
                          parity=parity, stop=stop_bits, timeout_char=timeout_char, timeout=timeout)
-        self.log(f"Initialized UART: {self.uart}")
-        self.log(f"Driver delay: {self.driver_delay} us")
-        self.log(f"TX delay: {self.tx_delay} us")
+        self.log(f"RS485: Initialized UART: {self.uart}")
+        self.log(f"RS485 driver delay: {self.driver_delay} us")
+        self.log(f"RS485 TX delay: {self.tx_delay} us")
+        self.log(f"RS485 Poll interval: {poll_interval} ms")
         self.de = Pin(de_pin, mode=Pin.OUT)
 
         self.poll_interval = int(poll_interval)  # 0 to poll continuously
@@ -53,7 +54,8 @@ class RS485:
     async def recv(self):
         async with self.dev_lock:
             self.de.off()  # Set DE pin to receive mode
-            self._recv()  # Get some data
+            if not self._recv():  # Get some data
+                await sleep_ms(1)  # if there is not data, pause a bit to avoid lockup
 
     def _recv(self):
         if data := self.uart.read():
