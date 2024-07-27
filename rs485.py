@@ -11,13 +11,17 @@ class RS485:
         self.debug = debug
         self.baudrate = baudrate
         self.tx_delay = int(tx_delay)  # delay after sending data, in us
-        timeout = int(tx_delay / 1000 + timeout_char)  # timeout for uart read, in ms
+        if tx_delay > 0:
+            timeout = int(tx_delay / 1000 + timeout_char)  # timeout for uart read, in ms
+        else:
+            timeout = timeout_char * 2  # Otherwise, wait for 2 char times
         self.uart = UART(uart, baudrate=baudrate, tx=tx_pin, rx=rx_pin, bits=data_bits,
                          parity=parity, stop=stop_bits, timeout_char=timeout_char, timeout=timeout)
         self.log(f"Initialized UART: {self.uart}")
         self.de = Pin(de_pin, mode=Pin.OUT)
 
         self.poll_interval = int(poll_interval)
+        print("Poll interval: ", self.poll_interval)
         self.messages = []
 
         self.run = Event()

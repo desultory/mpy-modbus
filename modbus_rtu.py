@@ -28,16 +28,17 @@ class ModbusRTUClient:
             tx_delay = chartime * 3500  # Use the base char time for the tx_delay, convert to us
             chartime = chartime * 1.5  # Multiply by 1.5 to account for the 1.5 character time
         else:
-            chartime = 0.750  # 750 us
             tx_delay = 1750  # 1750 us
+            chartime = 0.750  # 750 us
+
         chartime = ceil(chartime)
-        poll_interval = tx_delay / 500  # Multiply by 2, convert to ms
-        self.log("Chartime: %s, tx_delay: %s" % (chartime, tx_delay))
         self.address = address
         self.serial = RS485(tx_pin, rx_pin, de_pin, uart,
                             baudrate, data_bits, parity, stop_bits,
-                            tx_delay=tx_delay, timeout_char=chartime, poll_interval=poll_interval,
+                            tx_delay=tx_delay, timeout_char=chartime, poll_interval=chartime,
                             debug=debug)
+
+        self.poll_interval = chartime * 2
 
         # Each key is a register address
         # Implied starting at 40001, so 0x0000 is 40001
@@ -52,7 +53,7 @@ class ModbusRTUClient:
         while True:
             for message in self.get_messages():
                 await self.parse_recv(message)
-            await sleep_ms(1000)
+            await sleep_ms(self.poll_interval)
 
     def get_messages(self):
         """ Get a message from message list """
