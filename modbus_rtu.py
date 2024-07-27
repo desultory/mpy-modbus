@@ -2,11 +2,13 @@ from uasyncio import sleep_ms
 from modbus_frame import ModbusFrame, FrameTooShortError, get_serial_chartime
 from rs485 import RS485
 from math import ceil
+from utime import ticks_ms
 
 
 class ModbusRTUClient:
     def __init__(self, address, tx_pin, rx_pin, de_pin, uart=0,
-                 baudrate=19200, data_bits=8, parity=0, stop_bits=1):
+                 baudrate=19200, data_bits=8, parity=0, stop_bits=1,
+                 debug=False):
         """
         address: int, device address
         tx_pin: int, pin number for UART TX
@@ -18,6 +20,7 @@ class ModbusRTUClient:
         parity: int, parity (None: no parity, 0: even, 1: odd)
         stop_bits: int, number of stop bits (default 1)
         """
+        self.debug = debug
         if parity is None:
             stop_bits = 2  # Modbus RTU must use a 11-bit frame
         if baudrate < 19200:
@@ -26,18 +29,23 @@ class ModbusRTUClient:
             chartime = chartime * 1.5  # Multiply by 1.5 to account for the 1.5 character time
         else:
             chartime = 0.750  # 750 us
-            tx_delay = 1.750  # 1750 us
+            tx_delay = 1750  # 1750 us
         chartime = ceil(chartime)
         poll_interval = tx_delay / 500  # Multiply by 2, convert to ms
-        print("Chartime: %s, tx_delay: %s" % (chartime, tx_delay))
+        self.log("Chartime: %s, tx_delay: %s" % (chartime, tx_delay))
         self.address = address
         self.serial = RS485(tx_pin, rx_pin, de_pin, uart,
                             baudrate, data_bits, parity, stop_bits,
-                            tx_delay=tx_delay, timeout_char=chartime, poll_interval=poll_interval)
+                            tx_delay=tx_delay, timeout_char=chartime, poll_interval=poll_interval,
+                            debug=debug)
 
         # Each key is a register address
         # Implied starting at 40001, so 0x0000 is 40001
         self.holding_registers = {}  # Each key is a register address
+
+    def log(self, msg):
+        if self.debug:
+            print("[%d] %s" % (ticks_ms(), msg))
 
     async def runloop(self):
         print("Starting Modbus RTU Client")
@@ -99,7 +107,7 @@ class ModbusRTUClient:
             print("Received frame for another device: %s" % frame)
             return
         else:
-            print("Received frame: %s" % frame)
+            print("[%d] Received frame: %s" % (ticks_ms(), frame))
             if frame.function == 3:
                 await self.handle_read_holding_registers(frame)
 

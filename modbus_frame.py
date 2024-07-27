@@ -26,7 +26,6 @@ class ModbusFrame:
     @staticmethod
     def parse_frame(frame_bytes):
         """ Attempts to parse a modbus frame from a bytearray """
-        print("Parsing bytes: ", frame_bytes.hex())
         if len(frame_bytes) < 6:
             raise FrameTooShortError("Frame too short: %d" % len(frame_bytes))
         address, function = unpack(">BB", frame_bytes[:2])
