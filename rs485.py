@@ -15,11 +15,10 @@ class RS485:
                  timeout_char=2,  # UART timeout in ms
                  poll_interval=100,  # recv poll interval in ms
                  tx_delay=0,  # delay between consecutive transmissions in us
-                 driver_delay=1,  # RS485 driver delay after sending data, in char times
+                 driver_delay=1.5,  # RS485 driver delay after sending data, in char times
                  debug=False):
         self.debug = debug
-        delay_scale = 9600000 / baudrate  # Scale the driver delay based on baudrate
-        self.driver_delay = int(driver_delay * get_serial_chartime(baudrate, data_bits, parity, stop_bits) * delay_scale)
+        self.driver_delay = int(driver_delay * get_serial_chartime(baudrate, data_bits, parity, stop_bits) * 1000)
         self.tx_delay = int(tx_delay)
         if tx_delay > 0:
             timeout = int(tx_delay / 1000 + timeout_char)  # timeout for uart read, in ms

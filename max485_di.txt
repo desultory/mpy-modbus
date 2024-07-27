@@ -1,0 +1,8 @@
+test DI reset times after TX:
+
+baudrate: slowest pass, fastest pass
+
+921600:	16 > x
+19200: 781 > x > 271
+9600: 1562 > x
+1200: 12500 > x
