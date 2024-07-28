@@ -8,7 +8,7 @@ from utime import ticks_ms
 class ModbusRTUClient:
     def __init__(self, address, tx_pin, rx_pin, de_pin, uart=0,
                  baudrate=19200, data_bits=8, parity=0, stop_bits=1,
-                 debug=False):
+                 display_lines=None, debug=False):
         """
         address: int, device address
         tx_pin: int, pin number for UART TX
@@ -20,6 +20,7 @@ class ModbusRTUClient:
         parity: int, parity (None: no parity, 0: even, 1: odd)
         stop_bits: int, number of stop bits (default 1)
         """
+        self.display_lines = display_lines
         self.debug = debug
         if parity is None:
             stop_bits = 2  # Modbus RTU must use a 11-bit frame
@@ -104,7 +105,19 @@ class ModbusRTUClient:
         response = ModbusFrame(address=self.address, function=3, data=register_data, response=1)
         await self.serial.send(response.to_bytes())
 
+    def display_frame(self, frame):
+        if self.display_lines is not None:
+            self.display_lines.clear()
+            self.display_lines += f'Address: {frame.address}\n'
+            self.display_lines += f'Function: {frame.function}\n'
+            self.display_lines += f'CRC: {frame.crc.hex()}\n'
+            self.display_lines += f't: {ticks_ms()}\n'
+            self.display_lines += f'PDU: {frame.pdu.hex()}\n'
+        else:
+            print("[%d] %s" % (ticks_ms(), frame))
+
     async def handle_frame(self, frame):
+        self.display_frame(frame)
         if frame.address == 0:
             print("Received broadcast frame: %s" % frame)
         elif frame.address != self.address:

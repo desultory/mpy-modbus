@@ -54,7 +54,7 @@ class RS485:
     async def recv(self):
         async with self.dev_lock:
             self.de.off()  # Set DE pin to receive mode
-            if not self._recv():  # Get some data
+            if not self._recv() and not self.poll_interval:  # Get some data, wait if there os no poll interval
                 await sleep_ms(1)  # if there is not data, pause a bit to avoid lockup
 
     def _recv(self):
