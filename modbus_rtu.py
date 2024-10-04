@@ -103,20 +103,18 @@ class ModbusRTUClient:
         for i in range(start, end):
             register_data += self.holding_registers.get(i, b'\x00\x00')
         response = ModbusFrame(address=self.address, function=3, data=register_data, response=1)
+        self.display_frame(response)
         await self.serial.send(response.to_bytes())
 
     def display_frame(self, frame):
         if self.display_lines is not None:
-            self.display_lines.clear()
-            self.display_lines += f'Address: {frame.address}\n'
-            self.display_lines += f'Function: {frame.function}\n'
-            self.display_lines += f'CRC: {frame.crc.hex()}\n'
-            self.display_lines += f't: {ticks_ms()}\n'
-            self.display_lines += f'PDU: {frame.pdu.hex()}\n'
+            self.display_lines += f'{ticks_ms()}@{frame.address}:{frame.function};{frame.crc.hex()}\n'
+            self.display_lines += f'{frame.pdu.hex()}\n'
         else:
             print("[%d] %s" % (ticks_ms(), frame))
 
     async def handle_frame(self, frame):
+        self.display_lines.clear()
         self.display_frame(frame)
         if frame.address == 0:
             print("Received broadcast frame: %s" % frame)

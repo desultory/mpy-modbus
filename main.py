@@ -4,7 +4,7 @@ from display import Display
 from machine import I2C, Pin
 from utime import sleep_ms
 
-display_i2c = I2C(0, scl=Pin(5), sda=Pin(4))
+display_i2c = I2C(1, scl=Pin(27), sda=Pin(26))
 
 try:
     display = Display(display_i2c)
